@@ -38,7 +38,7 @@ $$p_{i}=\frac{exp(η_{i})}{1+exp(η_{i})}$$
 where $η_i$ is the linear predictor term of observation $i$ (see `vignette("brms_overview")` for more details on linear predictors in **brms**). Predicting `incidence` by `period` and a varying intercept of `herd` is straight forward in **brms**:
 
 
-```{r, cache=TRUE, results='hide'}
+```{r, cache=TRUE}
 fit1 <- brm(incidence | trials(size) ~ period + (1|herd),
            data = cbpp, family = binomial())
 ```
@@ -50,3 +50,146 @@ summary(fit1)
 ```
 
 A drawback of the binomial model is that – after taking into account the linear predictor – its variance is fixed to $Var(y_{i})=T_{i}p_{i}(1−p_{i})$. All variance exceeding this value cannot be not taken into account by the model. There are multiple ways of dealing with this so called *overdispersion* and the solution described below will serve as an illustrative example of how to define custom families in **brms**.
+
+## The Beta-binomial Distribution
+
+The beta-binomial model is a generalization of the binomial model with an additional parameter to account for overdispersion. In the beta-binomial model, we do not predict the binomial probability $p_{i}$ directly, but assume it to be beta distributed with hyperparameters $α>0$ and $β>0$:
+
+$$p_{i}∼Beta(α_{i},β_{i})$$
+
+The α and β parameters are both hard to interpret and generally not recommended for use in regression models. Thus, we will apply a different parameterization with parameters $μ∈[0,1]$ and $ϕ>0$, which we will call $Beta2$:
+
+$$Beta2(μ,ϕ)=Beta(μϕ,(1−μ)ϕ)$$
+
+The parameters μ and ϕ specify the mean and precision parameter, respectively. By defining
+
+$$μi=\frac{exp(η_{i})}{1+exp(η_{i})}$$
+
+we still predict the expected probability by means of our transformed linear predictor (as in the original binomial model), but account for potential overdispersion via the parameter $ϕ$.
+
+## Fitting Custom Family Models
+
+The beta-binomial distribution is not natively supported in **brms** and so we will have to define it ourselves using the `custom_family` function. This function requires the family’s name, the names of its parameters (`mu` and `phi` in our case), corresponding link functions (only applied if parameters are predicted), their theoretical lower and upper bounds (only applied if parameters are not predicted), information on whether the distribution is discrete or continuous, and finally, whether additional non-parameter variables need to be passed to the distribution. For our beta-binomial example, this results in the following custom family:
+
+```{r}
+beta_binomial2 <- custom_family(
+  "beta_binomial2", dpars = c("mu", "phi"),
+  links = c("logit", "log"), lb = c(NA, 0),
+  type = "int", vars = "vint1[n]"
+)
+```
+
+The name vint1 for the variable containing the number of trials is not chosen arbitrarily as we will see below. Next, we have to provide the relevant **Stan** functions if the distribution is not defined in **Stan** itself. For the `beta_binomial2` distribution, this is straight forward since the ordinal `beta_binomial` distribution is already implemented.
+
+```{r}
+stan_funs <- "
+  real beta_binomial2_lpmf(int y, real mu, real phi, int T) {
+    return beta_binomial_lpmf(y | T, mu * phi, (1 - mu) * phi);
+  }
+  int beta_binomial2_rng(real mu, real phi, int T) {
+    return beta_binomial_rng(T, mu * phi, (1 - mu) * phi);
+  }
+"
+```
+
+For the model fitting, we will only need `beta_binomial2_lpmf`, but `beta_binomial2_rng` will come in handy when it comes to post-processing. We define:
+
+```{r}
+stanvars <- stanvar(scode = stan_funs, block = "functions")
+```
+
+To provide information about the number of trials (an integer variable), we are going to use the addition argument `vint()`, which can only be used in custom families. Similarly, if we needed to include additional vectors of real data, we would use `vreal()`. Actually, for this particular example, we could more elegantly apply the addition argument `trials()` instead of `vint()` as in the basic binomial model. However, since the present vignette is meant to give a general overview of the topic, we will go with the more general method.
+
+We now have all components together to fit our custom beta-binomial model:
+
+```{r, cache=TRUE}
+fit2<- brm(
+  incidence | vint(size) ~ period + (1|herd), data = cbpp,
+  family = beta_binomial2, stanvars = stanvars
+)
+```
+
+The summary output reveals that the uncertainty in the coefficients of `period` is somewhat larger than in the basic binomial model, which is the result of including the overdispersion parameter `phi` in the model. Apart from that, the results looks pretty similar.
+
+```{r}
+summary(fit2)
+```
+
+## Post-processing Custom Family Models
+
+Some post-processing methods such as `summary` or `plot` work out of the box for custom family models. However, there are three particularly important methods, which require additional input by the user. These are `posterior_epred`, `posterior_predict` and `log_lik` computing predicted mean values, predicted response values, and log-likelihood values, respectively. They are not only relevant for their own sake, but also provide the basis of many other post-processing methods. For instance, we may be interested in comparing the fit of the binomial model with that of the beta-binomial model by means of approximate leave-one-out cross-validation implemented in method loo, which in turn requires `log_lik` to be working.
+
+The `log_lik` function of a family should be named `log_lik_<family-name>` and have the two arguments `i` (indicating observations) and `prep`. You don’t have to worry too much about how `prep` is created (if you are interested, check out the `prepare_predictions` function). Instead, all you need to know is that parameters are stored in slot `dpars` and data are stored in slot `data`. Generally, parameters take on the form of a $S×N$ matrix (with $S=$ number of posterior samples and $N=$ number of observations) if they are predicted (as is `mu` in our example) and a vector of size $N$ if the are not predicted (as is `phi`).
+
+We could define the complete log-likelihood function in R directly, or we can expose the self-defined **Stan** functions and apply them. The latter approach is usually more convenient, but the former is more stable and the only option when implementing custom families in other R packages building upon **brms**. For the purpose of the present vignette, we will go with the latter approach
+
+```{r}
+expose_functions(fit2, vectorize = TRUE)
+```
+
+and define the required `log_lik` functions with a few lines of code.
+
+```{r}
+log_lik_beta_binomial2 <- function(i, prep) {
+  mu <- prep$dpars$mu[, i]
+  phi <- prep$dpars$phi
+  trials <- prep$data$vint1[i]
+  y <- prep$data$Y[i]
+  beta_binomial2_lpmf(y, mu, phi, trials)
+}
+```
+
+with that being done, all of the post-procesing methids requiring `log_lik` will work as well. For instance, model comparison can simply be performed via
+
+```{r}
+loo(fit1, fit2)
+```
+
+Since larger `ELPD` values indicate better fit, we see that the beta-binomial model fits somewhat better, although the corresponding standard error reveals that the difference is not that substantial.
+
+Next, we will define the function necessary for the `posterior_predict` method:
+
+```{r}
+posterior_predict_beta_binomial2 <- function(i, prep, ...) {
+  mu <- prep$dpars$mu[, i]
+  phi <- prep$dpars$phi
+  trials <- prep$data$vint1[i]
+  beta_binomial2_rng(mu, phi, trials)
+}
+```
+
+The `posterior_predict` function looks pretty similar to the corresponding `log_lik` function, except that we are now creating random draws of the response instead of log-likelihood values. Again, we are using an exposed **Stan** function for convenience. Make sure to add a ... argument to your `posterior_predict` function even if you are not using it, since some families require additional arguments. With `posterior_predict` to be working, we can engage for instance in posterior-predictive checking:
+
+```{r}
+pp_check(fit2)
+```
+
+When defining the `posterior_epred` function, you have to keep in mind that it has only a `prep` argument and should compute the mean response values for all observations at once. Since the mean of the beta-binomial distribution is $E(y)=μT$ definition of the corresponding `posterior_epred` function is not too complicated, but we need to get the dimension of parameters and data in line.
+
+```{r}
+posterior_epred_beta_binomial2 <- function(prep) {
+  mu <- prep$dpars$mu
+  trials <- prep$data$vint1
+  trials <- matrix(trials, nrow = nrow(mu), ncol = ncol(mu), byrow = TRUE)
+  mu * trials
+}
+```
+
+A post-processing method relying directly on `posterior_epred` is `conditional_effects`, which allows to visualize effects of predictors.
+
+```{r}
+conditional_effects(fit2, conditions = data.frame(size = 1))
+```
+
+For ease of interpretation we have set `size` to 1 so that the y-axis of the above plot indicates probabilities.
+
+
+
+
+
+
+
+
+
+
+
