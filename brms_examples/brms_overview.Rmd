@@ -1,0 +1,110 @@
+---
+title: "An R Package for Bayesian Multilevels using Stan -  A worked Example"
+author: "Allen Baumgardner-Zuzik"
+date: "February 8, 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE}
+# Load necessary packages
+library(tidyverse)
+library(brms)
+```
+
+In the following, we use an example about the recurrence time of an infection in kidney
+patients initially published by McGilchrist and Aisbett (1991). The data set consists of 76
+entries of 7 variables:
+
+```{r}
+data("kidney")
+head(kidney, n = 3)
+```
+
+Variable `time` represents the recurrence time of the infection, `censored` indicates if `time` is
+right censored (1) or not censored (0), variable `patient` is the patient id, and `recur` indicates
+if it is the first or second recurrence in that patient. Finally, variables `age`, `sex`, and `disease` make up the predictors.
+
+## Fitting Models with brms
+
+The core of the **brms** package is the `brm` function and we will explain its argument structure
+using the example above. Suppose we want to predict the (possibly censored) recurrence time
+using a log-normal model, in which the intercept as well as the effect of `age` is nested within
+patients. Then, we may use the following code:
+
+```{r, cache = TRUE, results = 'hide'}
+fit1 <- brm(formula = time | cens(censored) ~ age * sex + disease + (1 + age|patient),
+            data = kidney, family = lognormal(),
+            prior = c(set_prior("normal(0,5)", class = "b"),
+                      set_prior("cauchy(0,2)", class = "sd"),
+                      set_prior("lkj(2)", class = "cor")),
+            warmup = 1000, iter = 2000, chains = 4,
+            control = list(adapt_delta = 0.95))
+```
+
+### 4.3 `formula`: Information on the response and predictors
+
+Without doubt, `formula` is the most complicated argument, as it contains information on the response variable as well as on predictors at different levels of the model. Everything before the $∼$ sign relates to the response part of `formula`. In the usual and most simple case, this is just one variable name (e.g., `time`). However, to incorporate additional information about the response, one can add one or more terms of the form `| fun(variable)`. `fun` may be one of a few functions defined internally in **brms** and `variable` corresponds to a variable in the data set supplied by the user. In this example, `cens` makes up the internal function that handles censored data, and `censored` is the variable that contains information on the censoring. Other available functions in this context are `weights` and `disp` to allow different sorts of weighting, `se` to specify known standard errors primarily for meta-analysis, `trunc` to define truncation boundaries, `trials` for binomial models3, and `cat` to specify the number of categories for ordinal models. Note that in functions such as `glm` or `glmer`, the binomial response is typically passed as `cbind(success, failure)`. In **brms**, the equivalent syntax is `success | trials(success + failure)`.
+
+Everything on the right side of $∼$ specifies predictors. Here, the syntax exactly matches that of **lme4**. For both, population-level and group-level terms, the $+$ is used to separate different effects from each other. Group-level terms are of the form `(coefs | group)`, where `coefs` contains one or more variables whose effects are assumed to vary with the levels of the grouping factor given in `group`. Multiple grouping factors each with multiple group-level coefficients are possible. In the present example, only one group-level term is specified in which `1 + age` are the coefficients varying with the grouping factor `patient`. This implies that the intercept of the model as well as the effect of age is supposed to vary between patients. By default, group-level coefficients within a grouping factor are assumed to be correlated. Correlations can be set to zero by using the `(coefs || group)` syntax. Everything on the right side of `formula` that is not recognized as part of a group-level term is treated as a population-level effect. In this example, the population-level effects are `age`, `sex`, and `disease`.
+
+In crontrast to **lme4**, the $||$ operator in **brms** splits up the design matrix computed from `coefs` instead of decomposing `coefs` in its terms. This implies that columns of the design matrix originating from the same factor are also assumed to be uncorrelated, whereas **lme4** estimates the correlations in this case. For a way to achieve **brms**-like behavior with **lme4**, see the `mixed` function of the **afex** package by Singmann, Bolker, and Westfall (2015).
+
+### `family`: Distribution of the respone variable
+
+Argument `family` should usually be a family function, a call to a family function or a character string naming the family. If not otherwise specified, default link functions are applied. **brms** comes with a large variety of families. Linear and robust linear regression can be performed using the `gaussian` or `student` family combined with the `identity` link. For dichotomous and categorical data, families `bernoulli`, `binomial`, and `categorical` combined with the `logit` link, by default, are perfectly suited. Families `poisson`, `negbinomial`, and `geometric` allow for modeling count data. Families `lognormal`, `Gamma`, `exponential`, and `weibull` can be used (among others) for survival regression. Ordinal regression can be performed using the families `cumulative`, `cratio`, `sratio`, and `acat`. Finally, families `zero_inflated_poisson`, `zero_inflated_negbinomial`, `zero_inflated_binomial`, `zero_inflated_beta`, `hurdle_poisson`, `hurdle_negbinomial`, and `hurdle_gamma` can be used to adequately model excess zeros in the response. In our example, we use `family = lognormal()` implying a log-normal “survival” model for the response variable time.
+
+### `prior`: Prior distributions of model parameters
+
+Every population-level effect has its corresponding regression parameter. These parameters are named as `b_<coef>`, where `<coef>` represents the name of the corresponding populationlevel effect. The default prior is an improper flat prior over the reals. Suppose, for instance, that we want to set a normal prior with mean 0 and standard deviation 10 on the effect of `age` and a Cauchy prior with location 1 and scale 2 on sexfemale . Then, we may write
+
+```{r}
+prior <- c(set_prior("normal(0,10)", class = "b", coef = "age"),
+           set_prior("cauchy(1,2)", class = "b", coef = "sexfemale"))
+```
+
+Not that when factors are used as predictors, parameter names will depend on the factor levels. To get an overview of all the parameters and parameter classes for which priors can be specified, use function `get_prior`.  For the present example, `get_prior(time | cens(censored) ~ age * sex + disease + (1 + age|patient), data = kidney, family = lognormal())` does the desired.
+
+To put the same prior (e.g., a normal prior) on all population-level effects at once, we may
+write as a shortcut `set_prior("normal(0,10)", class = "b")`. This also leads to faster
+sampling, because priors can be vectorized in this case. Note that we could also omit the
+class argument for population-level effects, as it is the default class in `set_prior`.
+
+A special shrinkage prior to be applied on population-level effects is the horseshoe prior (Carvalho, Polson, and Scott 2009, 2010). It is symmetric around zero with fat tails and an infinitely large spike at zero. This makes it ideal for sparse models that have many regression coefficients, although only a minority of them is non-zero. The horseshoe prior can be applied on all population-level effects at once (excluding the intercept) by using  `set_prior("horseshoe(1)")`. The 1 implies that the Student-t prior of the local shrinkage parameters has 1 degrees of freedom. In **brms** it is possible to increase the degrees of freedom (which will often improve convergence), although the prior no longer resembles a horseshoe in this case. This class of priors is often referred to as hierarchical shrinkage family, which contains the original horseshoe prior as a special case. For more details see Carvalho et al. (2009, 2010).
+
+Each group-level effect of each grouping factor has a standard deviation parameter, which is restricted to be non-negative and, by default, has a half Student-t prior with 3 degrees of freedom and a scale parameter that is minimally 10. For non-ordinal models, **brms** tries to evaluate if the scale is large enough to be considered only weakly informative for the model at hand by comparing it with the standard deviation of the response after applying the link function. If this is not the case, it will increase the scale based on the aforementioned standard deviation. Changing priors based on the data is not truly Bayesian and might rightly be criticized. However it helps avoiding the problem of too informative default priors without always forcing users to define their own priors. The latter would also be problematic as not all users can be expected to be well educated Bayesians and reasonable default priors will help them a lot in using Bayesian methods. **Stan** implicitly defines a half Student-t prior by using a Student-t prior on a restricted parameter (Stan Development Team 2017b). For other reasonable priors on standard deviations see Gelman (2006). In **brms**, standard deviation parameters are named as `sd_<group>_<coef>` so that `sd_patient_Intercept` and `sd_patient_age` are the parameter names in the example. If desired, it is possible to set a different prior on each parameter, but statements such as `set_prior("student_t(3,0,5)", class = "sd", group = "patient")` or even `set_prior("student_t(3,0,5)", class = "sd")` may also be used and are again faster because of vectorization
+
+If there is more than one group-level effect per grouping factor, correlations between group-level effects are estimated. As mentioned in Section 2, the LKJ-Correlation prior with parameter $ζ > 0$ (Lewandowski et al. 2009) is used for this purpose. In **brms**, this prior is abbreviated as "`lkj(zeta)`" and correlation matrix parameters are named as `cor_<group>`, (e.g., `cor_patient`), so that `set_prior("lkj(2)", class = "cor", group = "patient")` is a valid statement. To set the same prior on every correlation matrix in the model, `set_prior("lkj(2)", class = "cor")` is also allowed, but does not come with any efficiency increases.
+
+Other model parameters such as the residual standard deviation `sigma` in normal models or
+the `shape` in Gamma models have their priors defined in the same way, where each of them is
+treated as having its own parameter class. A complete overview on possible prior distributions
+is given in the **Stan** user’s manual (Stan Development Team 2017b). Note that **brms** does
+not thoroughly check if the priors are written in correct **Stan** language. Instead, **Stan** will
+check their syntactical correctness when the model is parsed to C++ and return an error if
+they are not. This, however, does not imply that priors are always meaningful if they are
+accepted by **Stan**. Although **brms** tries to find common problems (e.g., setting bounded priors
+on unbounded parameters), there is no guarantee that the defined priors are reasonable for
+the model.
+
+### `control`: Adjusting the sampling behavior of Stan
+
+In addition to choosing the number of iterations, warmup samples, and chains, users can control the behavior of the NUTS sampler by using the `control` argument. The most important reason to use `control` is to decrease (or eliminate at best) the number of divergent transitions that cause a bias in the obtained posterior samples. Whenever you see the warning "There were x divergent transitions after warmup.", you should really think about increasing `adapt_delta`. To do this, write control = list(adapt_delta = <x>), where <x> should usually be a value between 0.8 (current default) and 1. Increasing adapt_delta will slow down the sampler but will decrease the number of divergent transitions threatening the validity of your posterior samples.
+
+Another problem arises when the depth of the tree being evaluated in each iteration is exceeded. This is less common than having divergent transitions, but may also bias the posterior samples. When it happens, **Stan** will throw out a warning suggesting to increase `max_treedepth`, which can be accomplished by writing `control = list(max_treedepth = <x>)` with a positive integer `<x>` that should usually be larger than the current default of 10.
+
+
+
+
+
+
+
+
+
+
+
+
+
