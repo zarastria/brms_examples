@@ -219,18 +219,18 @@ head(kidney, n = 3)</code></pre>
 ## to find out why this is a problem and how to eliminate them.</code></pre>
 <pre><code>## Warning: Examine the pairs() plot to diagnose sampling problems</code></pre>
 <div id="formula-information-on-the-response-and-predictors" class="section level3">
-<h3>4.3 <code>formula</code>: Information on the response and predictors</h3>
-<p>Without doubt, <code>formula</code> is the most complicated argument, as it contains information on the response variable as well as on predictors at different levels of the model. Everything before the <span class="math inline">\(∼\)</span> sign relates to the response part of <code>formula</code>. In the usual and most simple case, this is just one variable name (e.g., <code>time</code>). However, to incorporate additional information about the response, one can add one or more terms of the form <code>| fun(variable)</code>. <code>fun</code> may be one of a few functions defined internally in <strong>brms</strong> and <code>variable</code> corresponds to a variable in the data set supplied by the user. In this example, <code>cens</code> makes up the internal function that handles censored data, and <code>censored</code> is the variable that contains information on the censoring. Other available functions in this context are <code>weights</code> and <code>disp</code> to allow different sorts of weighting, <code>se</code> to specify known standard errors primarily for meta-analysis, <code>trunc</code> to define truncation boundaries, <code>trials</code> for binomial models3, and <code>cat</code> to specify the number of categories for ordinal models. Note that in functions such as <code>glm</code> or <code>glmer</code>, the binomial response is typically passed as <code>cbind(success, failure)</code>. In <strong>brms</strong>, the equivalent syntax is <code>success | trials(success + failure)</code>.</p>
+<h3><code>formula</code>: Information on the response and predictors</h3>
+<p>Without a doubt, <code>formula</code> is the most complicated argument, as it contains information on the response variable as well as on predictors at different levels of the model. Everything before the <span class="math inline">\(∼\)</span> sign relates to the response part of <code>formula</code>. In the usual and most simple case, this is just one variable name (e.g., <code>time</code>). However, to incorporate additional information about the response, one can add one or more terms of the form <code>| fun(variable)</code>. <code>fun</code> may be one of a few functions the user. In this example, <code>cens</code> makes up the internal function that handles censored data, and <code>censored</code> is the variable that contains information on the censoring. Other available functions in this context are <code>weights</code> and <code>disp</code> to allow different sorts of weighting, <code>se</code> to specify known standard errors primarily for meta-analysis, <code>trunc</code> to define truncation boundaries, <code>trials</code> for binomial models3, and <code>cat</code> to specify the number of categories for ordinal models. Note that in functions such as <code>glm</code> or <code>glmer</code>, the binomial response is typically passed as <code>cbind(success, failure)</code>. In <strong>brms</strong>, the equivalent syntax is <code>success | trials(success + failure)</code>.</p>
 <p>Everything on the right side of <span class="math inline">\(∼\)</span> specifies predictors. Here, the syntax exactly matches that of <strong>lme4</strong>. For both, population-level and group-level terms, the <span class="math inline">\(+\)</span> is used to separate different effects from each other. Group-level terms are of the form <code>(coefs | group)</code>, where <code>coefs</code> contains one or more variables whose effects are assumed to vary with the levels of the grouping factor given in <code>group</code>. Multiple grouping factors each with multiple group-level coefficients are possible. In the present example, only one group-level term is specified in which <code>1 + age</code> are the coefficients varying with the grouping factor <code>patient</code>. This implies that the intercept of the model as well as the effect of age is supposed to vary between patients. By default, group-level coefficients within a grouping factor are assumed to be correlated. Correlations can be set to zero by using the <code>(coefs || group)</code> syntax. Everything on the right side of <code>formula</code> that is not recognized as part of a group-level term is treated as a population-level effect. In this example, the population-level effects are <code>age</code>, <code>sex</code>, and <code>disease</code>.</p>
 <p>In crontrast to <strong>lme4</strong>, the <span class="math inline">\(||\)</span> operator in <strong>brms</strong> splits up the design matrix computed from <code>coefs</code> instead of decomposing <code>coefs</code> in its terms. This implies that columns of the design matrix originating from the same factor are also assumed to be uncorrelated, whereas <strong>lme4</strong> estimates the correlations in this case. For a way to achieve <strong>brms</strong>-like behavior with <strong>lme4</strong>, see the <code>mixed</code> function of the <strong>afex</strong> package by Singmann, Bolker, and Westfall (2015).</p>
 </div>
 <div id="family-distribution-of-the-respone-variable" class="section level3">
 <h3><code>family</code>: Distribution of the respone variable</h3>
-<p>Argument <code>family</code> should usually be a family function, a call to a family function or a character string naming the family. If not otherwise specified, default link functions are applied. <strong>brms</strong> comes with a large variety of families. Linear and robust linear regression can be performed using the <code>gaussian</code> or <code>student</code> family combined with the <code>identity</code> link. For dichotomous and categorical data, families <code>bernoulli</code>, <code>binomial</code>, and <code>categorical</code> combined with the <code>logit</code> link, by default, are perfectly suited. Families <code>poisson</code>, <code>negbinomial</code>, and <code>geometric</code> allow for modeling count data. Families <code>lognormal</code>, <code>Gamma</code>, <code>exponential</code>, and <code>weibull</code> can be used (among others) for survival regression. Ordinal regression can be performed using the families <code>cumulative</code>, <code>cratio</code>, <code>sratio</code>, and <code>acat</code>. Finally, families <code>zero_inflated_poisson</code>, <code>zero_inflated_negbinomial</code>, <code>zero_inflated_binomial</code>, <code>zero_inflated_beta</code>, <code>hurdle_poisson</code>, <code>hurdle_negbinomial</code>, and <code>hurdle_gamma</code> can be used to adequately model excess zeros in the response. In our example, we use <code>family = lognormal()</code> implying a log-normal “survival” model for the response variable time.</p>
+<p>The argument <code>family</code> should usually be a family function, a call to a family function or a character string naming the family. If not otherwise specified, default link functions are applied. <strong>brms</strong> comes with a large variety of families. Linear and robust linear regression can be performed using the <code>gaussian</code> or <code>student</code> family combined with the <code>identity</code> link. For dichotomous and categorical data, families <code>bernoulli</code>, <code>binomial</code>, and <code>categorical</code> combined with the <code>logit</code> link, by default, are perfectly suited. Families <code>poisson</code>, <code>negbinomial</code>, and <code>geometric</code> allow for modeling count data. Families <code>lognormal</code>, <code>Gamma</code>, <code>exponential</code>, and <code>weibull</code> can be used (among others) for survival regression. Ordinal regression can be performed using the families <code>cumulative</code>, <code>cratio</code>, <code>sratio</code>, and <code>acat</code>. Finally, families <code>zero_inflated_poisson</code>, <code>zero_inflated_negbinomial</code>, <code>zero_inflated_binomial</code>, <code>zero_inflated_beta</code>, <code>hurdle_poisson</code>, <code>hurdle_negbinomial</code>, and <code>hurdle_gamma</code> can be used to adequately model excess zeros in the response. In our example, we use <code>family = lognormal()</code> implying a log-normal “survival” model for the response variable time.</p>
 </div>
 <div id="prior-prior-distributions-of-model-parameters" class="section level3">
 <h3><code>prior</code>: Prior distributions of model parameters</h3>
-<p>Every population-level effect has its corresponding regression parameter. These parameters are named as <code>b_&lt;coef&gt;</code>, where <code>&lt;coef&gt;</code> represents the name of the corresponding populationlevel effect. The default prior is an improper flat prior over the reals. Suppose, for instance, that we want to set a normal prior with mean 0 and standard deviation 10 on the effect of <code>age</code> and a Cauchy prior with location 1 and scale 2 on sexfemale . Then, we may write</p>
+<p>Every population-level effect has its own corresponding regression parameter. These parameters are named as <code>b_&lt;coef&gt;</code>, where <code>&lt;coef&gt;</code> represents the name of the corresponding populationlevel effect. The default prior is an improper flat prior over the reals. Suppose, for instance, that we want to set a normal prior with mean 0 and standard deviation 10 on the effect of <code>age</code> and a Cauchy prior with location 1 and scale 2 on sexfemale . Then, we may write</p>
 <pre class="r"><code>prior &lt;- c(set_prior(&quot;normal(0,10)&quot;, class = &quot;b&quot;, coef = &quot;age&quot;),
            set_prior(&quot;cauchy(1,2)&quot;, class = &quot;b&quot;, coef = &quot;sexfemale&quot;))</code></pre>
 <p>Not that when factors are used as predictors, parameter names will depend on the factor levels. To get an overview of all the parameters and parameter classes for which priors can be specified, use function <code>get_prior</code>. For the present example, <code>get_prior(time | cens(censored) ~ age * sex + disease + (1 + age|patient), data = kidney, family = lognormal())</code> does the desired.</p>
@@ -244,6 +244,173 @@ head(kidney, n = 3)</code></pre>
 <h3><code>control</code>: Adjusting the sampling behavior of Stan</h3>
 <p>In addition to choosing the number of iterations, warmup samples, and chains, users can control the behavior of the NUTS sampler by using the <code>control</code> argument. The most important reason to use <code>control</code> is to decrease (or eliminate at best) the number of divergent transitions that cause a bias in the obtained posterior samples. Whenever you see the warning &quot;There were x divergent transitions after warmup.&quot;, you should really think about increasing <code>adapt_delta</code>. To do this, write control = list(adapt_delta = <x>), where <x> should usually be a value between 0.8 (current default) and 1. Increasing adapt_delta will slow down the sampler but will decrease the number of divergent transitions threatening the validity of your posterior samples.</p>
 <p>Another problem arises when the depth of the tree being evaluated in each iteration is exceeded. This is less common than having divergent transitions, but may also bias the posterior samples. When it happens, <strong>Stan</strong> will throw out a warning suggesting to increase <code>max_treedepth</code>, which can be accomplished by writing <code>control = list(max_treedepth = &lt;x&gt;)</code> with a positive integer <code>&lt;x&gt;</code> that should usually be larger than the current default of 10.</p>
+</div>
+<div id="analyzing-the-results" class="section level3">
+<h3>Analyzing the results</h3>
+<p>The example model <code>fit1</code> is fitted using 4 chains, each with 2000 iterations of which the first 1000 are warmup to calibrate the sampler, leading to a total of 4000 posterior samples. To sace time, chains may also run in parallel when using the <code>cluster</code> argument. For researchers familiar with Gibbs or Metropolis-Hastings sampling, this number may seem far too small to achieve good convergence and reasonable results, especially for multilevel models. However, as <strong>brms</strong> utilizes the NUTS sampler (Hoffman and Gelman 2014) implemented in <strong>Stan</strong>, even complex models can often be fitted with not more than a few thousand samples. Of course, every iteration is more computationally intensive and time-consuming than the iterations of other algorithms, but the quality of the samples (i.e., the effective sample size per iteration) is usually higher.</p>
+<p>After the posterior samples have been computed, the <code>brm</code> function returns an R object, containing (among others) the fully commented model code in <strong>Stan</strong> language, the data to fit the model, and the posterior samples themselves. The model code and data for the present example can be extracted through <code>stancode(fit1)</code> and <code>standata(fit1)</code> respectively. Both model code and data may be amended and used to fit new models. That way, <strong>brms</strong> can also serve as a good point in building complicated models in <strong>Stan</strong>, directly. A model summary is readily available using</p>
+<pre class="r"><code>summary(fit1, waic = TRUE)</code></pre>
+<pre><code>## Warning: There were 4 divergent transitions after warmup. Increasing adapt_delta
+## above 0.95 may help. See http://mc-stan.org/misc/warnings.html#divergent-
+## transitions-after-warmup</code></pre>
+<pre><code>##  Family: lognormal 
+##   Links: mu = identity; sigma = identity 
+## Formula: time | cens(censored) ~ age * sex + disease + (1 + age | patient) 
+##    Data: kidney (Number of observations: 76) 
+## Samples: 4 chains, each with iter = 2000; warmup = 1000; thin = 1;
+##          total post-warmup samples = 4000
+## 
+## Group-Level Effects: 
+## ~patient (Number of levels: 38) 
+##                    Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS Tail_ESS
+## sd(Intercept)          0.40      0.29     0.02     1.07 1.00     1460     1724
+## sd(age)                0.01      0.01     0.00     0.02 1.00      864     1732
+## cor(Intercept,age)    -0.14      0.46    -0.89     0.77 1.00     2280     2117
+## 
+## Population-Level Effects: 
+##               Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS Tail_ESS
+## Intercept         2.73      0.95     0.88     4.64 1.01     1678     2412
+## age               0.01      0.02    -0.03     0.06 1.01     1425     1989
+## sexfemale         2.43      1.12     0.22     4.57 1.00     1717     2291
+## diseaseGN        -0.38      0.53    -1.40     0.67 1.00     2409     2590
+## diseaseAN        -0.50      0.51    -1.52     0.53 1.00     2580     2801
+## diseasePKD        0.63      0.72    -0.77     2.04 1.00     2680     2880
+## age:sexfemale    -0.02      0.03    -0.07     0.03 1.00     1626     1893
+## 
+## Family Specific Parameters: 
+##       Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS Tail_ESS
+## sigma     1.14      0.13     0.92     1.43 1.00     3125     3057
+## 
+## Samples were drawn using sampling(NUTS). For each parameter, Bulk_ESS
+## and Tail_ESS are effective sample size measures, and Rhat is the potential
+## scale reduction factor on split chains (at convergence, Rhat = 1).</code></pre>
+<p>On the top of the output, some general information on the model is given, such as family, formula, number of iterations and chains, as well as the WAIC. Next, group-level effects are displayed separately for each grouping factor in terms of standard deviations and correlations between group-level effects. On the bottom of the output, population-level effects are displayed. If incorporated, autocorrelation and family specific parameters (e.g., the residual standard deviation <code>sigma</code>) are also given.</p>
+<p>In general, every parameter is summarized using the mean (<code>Estimate</code>) and the standard deviation (<code>Est.Error</code>) of the posterior distribution as well as two-sided 95% Credible intervals (<code>l-95% CI</code> and <code>u-95% CI</code>) based on quantiles. The <code>Eff.Sample</code> value is an estimation of the effective sample size; that is the number of independent samples from the posterior distribution that would be expected to yield the same standard error of the posterior mean as is obtained from the dependent samples returned by the MCMC algorithm. The <code>Rhat</code> value provides information on the convergence of the algorithm (cf., Gelman and Rubin, 1992). If <code>Rhat</code> is considerably greater than 1 (i.e., &gt; 1.1), the chains have not yet converged and it is necessary to run more iterations and/or set stronger priors.</p>
+<p>To visually investigate the chains as well as the posterior distribution, the <code>plot</code> method can be used (see Figure 2). An even more detailed investigation can be achieved by applying the <strong>shinystan</strong> package (Gabry 2015) through method <code>launch_shiny</code>. With respect to the above summary, <code>sexfemale</code> seems to be the only population-level effect with considerable influence on the response. Because the mean of <code>sexfemale</code> is positive, the model predicts longer periods without an infection for females than for males. Effects of population-level predictors can also be visualized with the <code>conditional_effects</code> method (see Figure 3).</p>
+<p>Looking at the group-level effects, the standard deviation parameter of age is suspiciously small. To test whether it is smaller than the standard deviation parameter of Intercept, we apply the hypothesis method:</p>
+<pre class="r"><code>hypothesis(fit1, &quot;Intercept - age &gt; 0&quot;, class = &quot;sd&quot;, group = &quot;patient&quot;)</code></pre>
+<pre><code>## Hypothesis Tests for class sd_patient:
+##            Hypothesis Estimate Est.Error CI.Lower CI.Upper Evid.Ratio Post.Prob
+## 1 (Intercept-age) &gt; 0      0.4      0.29     0.03     0.91      87.89      0.99
+##   Star
+## 1    *
+## ---
+## 'CI': 90%-CI for one-sided and 95%-CI for two-sided hypotheses.
+## '*': For one-sided hypotheses, the posterior probability exceeds 95%;
+## for two-sided hypotheses, the value tested against lies outside the 95%-CI.
+## Posterior probabilities of point hypotheses assume equal prior probabilities.</code></pre>
+<p>The one-sided 95% credibility interval does not contain zero, thus indicating that the standard deviations differ from each other in the expected direction. In accordance with this finding, the <code>Evid.Ratio</code> shows that the hypothesis being tested (i.e., <code>Intercept - age &gt; 0</code>) is about 68 times more likely than the alternative hypothesis <code>Intercept - age &lt; 0</code>. It is important to note that this kind of comparison is not easily possible when applying frequentist methods, because in this case only point estimates are available for group-level standard deviations and correlations.</p>
+<p>When looking at the correlation between both group-level effects, its distribution displayed in Figure 2 and the 95% credibility interval in the summary output appear to be rather wide. This indicates that there is not enough evidence in the data to reasonably estimate the correlation. Together, the small standard deviation of <code>age</code> and the uncertainty in the correlation raise the question if <code>age</code> should be modeled as a group specific term at all. To answer this question, we fit another model without this term:</p>
+<pre class="r"><code>fit2 &lt;- update(fit1, formula. = ~ . - (1+ age|patient) + (1|patient))</code></pre>
+<pre><code>## The desired updates require recompiling the model</code></pre>
+<pre><code>## Compiling Stan program...</code></pre>
+<pre><code>## Start sampling</code></pre>
+<p>A good way to compare both models is <em>leave-one-out cross-validation</em> (LOO), which can be called in <strong>brms</strong> using the following code. The WAIC is an apprximation of LOO that is faster and easier to compute. However, according to Vehtari et al. (2015), LOO may be the prefered method to perform model comparisons.</p>
+<pre class="r"><code>LOO(fit1, fit2)</code></pre>
+<pre><code>## Warning: Found 1 observations with a pareto_k &gt; 0.7 in model 'fit1'. It is
+## recommended to set 'moment_match = TRUE' in order to perform moment matching for
+## problematic observations.</code></pre>
+<pre><code>## Output of model 'fit1':
+## 
+## Computed from 4000 by 76 log-likelihood matrix
+## 
+##          Estimate   SE
+## elpd_loo   -337.8 22.6
+## p_loo        15.0  2.2
+## looic       675.6 45.2
+## ------
+## Monte Carlo SE of elpd_loo is NA.
+## 
+## Pareto k diagnostic values:
+##                          Count Pct.    Min. n_eff
+## (-Inf, 0.5]   (good)     56    73.7%   658       
+##  (0.5, 0.7]   (ok)       19    25.0%   474       
+##    (0.7, 1]   (bad)       1     1.3%   424       
+##    (1, Inf)   (very bad)  0     0.0%   &lt;NA&gt;      
+## See help('pareto-k-diagnostic') for details.
+## 
+## Output of model 'fit2':
+## 
+## Computed from 4000 by 76 log-likelihood matrix
+## 
+##          Estimate   SE
+## elpd_loo   -337.2 22.6
+## p_loo        12.8  2.0
+## looic       674.5 45.2
+## ------
+## Monte Carlo SE of elpd_loo is 0.1.
+## 
+## Pareto k diagnostic values:
+##                          Count Pct.    Min. n_eff
+## (-Inf, 0.5]   (good)     64    84.2%   684       
+##  (0.5, 0.7]   (ok)       12    15.8%   473       
+##    (0.7, 1]   (bad)       0     0.0%   &lt;NA&gt;      
+##    (1, Inf)   (very bad)  0     0.0%   &lt;NA&gt;      
+## 
+## All Pareto k estimates are ok (k &lt; 0.7).
+## See help('pareto-k-diagnostic') for details.
+## 
+## Model comparisons:
+##      elpd_diff se_diff
+## fit2  0.0       0.0   
+## fit1 -0.5       0.5</code></pre>
+<p>In the output, the LOO information criterion for each model as well as the difference of the LOOs each with its corresponding standard error is shown. Both LOO and WAIC are approximately normal if the number of observations is large so that the standard errors can be very helpful in evaluating differences in the information criteria. However, for small sample sizes, standard errors should be interpreted with care (Vehtari et al. 2015). For the present example, it is immediately evident that both models have very similar fit, indicating that there is little benefit in adding group specific coefficients for <code>age</code>.</p>
+</div>
+<div id="modeling-ordinal-data" class="section level3">
+<h3>Modeling Ordinal Data</h3>
+<p>In the following, we want to briefly discuss a second example to demonstrate the capabilities of <strong>brms</strong> in handling ordinal data. Ezzet and Whitehead (1991) analyze data from a twotreatment, two-period crossover trial to compare 2 inhalation devices for delivering the drug salbutamol in 286 asthma patients. Patients were asked to rate the clarity of leaflet instructions accompanying each device, using a four-point ordinal scale. Ratings are predicted by treat to indicate which of the two inhaler devices was used, <code>period</code> to indicate the time of administration, and <code>carry</code> to model possible carry over effects.</p>
+<pre class="r"><code>data(&quot;inhaler&quot;)
+head(inhaler, n = 1)</code></pre>
+<pre><code>##   subject rating treat period carry
+## 1       1      1   0.5    0.5     0</code></pre>
+<p>Typically, the ordinal response is assumed to originate from the categorization of a latent continuous variable. That is there are <span class="math inline">\(K\)</span> latent thresholds (model intercepts), which partition the continuous scale into the <span class="math inline">\(K+1\)</span> observable, ordered categories. Following this approach leads to the cumulative or graded-response model (Samejima 1969) for ordinal data implemented in many <strong>R</strong> packages. In <strong>brms</strong>, it is available via family <code>cumulative</code>. Fitting the cumulative model to the inhaler data, also incorporating an intercept varying by subjects, may look this:</p>
+<pre class="r"><code>fit3 &lt;- brm(formula = rating ~ treat + period + carry + (1|subject),
+            data = inhaler, family = cumulative)</code></pre>
+<pre><code>## Compiling Stan program...</code></pre>
+<pre><code>## Start sampling</code></pre>
+<p>While the support for ordinal data in most <strong>R</strong> packages ends here, <strong>brms</strong> allows changes to this basic model in at least three ways. Exceptions known to us are the packages <strong>ordinal</strong> (Christensen 2015) and <strong>VGAM</strong> (Yee 2010). The former supports only cumulative models but with different modeling options for the thresholds. The latter supports all four ordinal families also implemented in <strong>brms</strong> as well as category specific effects but no group-specific effects. First of the three ways, three additional ordinal families are implemented. Families <code>sratio</code> (stopping ratio) and <code>cratio</code> (continuation ratio) are so called sequential models (Tutz 1990). Both are equivalent to each other for symmetric link functions such as <code>logit</code> but will differ for asymmetric ones such as <code>cloglog</code>. The fourth ordinal family is <code>acat</code> (adjacent category) also known as partial credits model (Masters 1982; Andrich 1978b). Second, restrictions to the thresholds can be applied. By default, thresholds are ordered for family <code>cumulative</code> or are completely free to vary for the other families. This is indicated by argument <code>threshold = &quot;flexible&quot;</code> (default) in <code>brm</code>. Using <code>threshold = &quot;equidistant&quot;</code> forces the distance between two adjacent thresholds to be the same, that is</p>
+<p><span class="math display">\[τ_{k} = τ_{1} + (k − 1)δ\]</span></p>
+<p>for thresholds <span class="math inline">\(τ_{k}\)</span> and distance <span class="math inline">\(δ\)</span> (see also Andrich 1978a; Andrich 1978b; Andersen 1977). Third, the assumption that predictors have constant effects across categories may be relaxed for non-cumulative ordinal models (Van Der Ark 2001; Tutz 2000) leading to category specific effects. For instance, variable treat may only have an impact on the decision between category 3 and 4, but not on the lower categories. Without using category specific effects, such a pattern would remain invisible.</p>
+<p>To illustrate all three modeling options at once, we fit a (hardly theoretically justified) stopping ratio model with equidistant thresholds and category specific effects for variable <code>treat</code> on which we apply an informative prior.</p>
+<pre class="r"><code>fit4 &lt;- brm(formula = rating ~ period + carry + cs(treat) + (1|subject),
+             data = inhaler, family = sratio(threshold = &quot;equidistant&quot;),
+            prior = set_prior(&quot;normal(-1,2)&quot;, coef = &quot;treat&quot;))</code></pre>
+<pre><code>## Compiling Stan program...</code></pre>
+<pre><code>## Start sampling</code></pre>
+<p>Note that priors are defined on category specific effects in the same way as for other populationlevel effects. A model summary can be obtained in the same way as before:</p>
+<pre class="r"><code>summary(fit4, waic = TRUE)</code></pre>
+<pre><code>##  Family: sratio 
+##   Links: mu = logit; disc = identity 
+## Formula: rating ~ period + carry + cs(treat) + (1 | subject) 
+##    Data: inhaler (Number of observations: 572) 
+## Samples: 4 chains, each with iter = 2000; warmup = 1000; thin = 1;
+##          total post-warmup samples = 4000
+## 
+## Group-Level Effects: 
+## ~subject (Number of levels: 286) 
+##               Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS Tail_ESS
+## sd(Intercept)     1.06      0.23     0.60     1.52 1.00      686      972
+## 
+## Population-Level Effects: 
+##              Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS Tail_ESS
+## Intercept[1]     0.72      0.13     0.48     0.97 1.00     2591     2733
+## Intercept[2]     2.67      0.35     2.04     3.37 1.00     1030     1518
+## Intercept[3]     4.63      0.66     3.42     5.93 1.00     1067     1617
+## period           0.25      0.18    -0.10     0.61 1.00     5923     2645
+## carry           -0.25      0.22    -0.70     0.17 1.00     2289     2794
+## treat[1]        -0.97      0.29    -1.57    -0.41 1.00     2130     2775
+## treat[2]        -0.66      0.49    -1.66     0.25 1.00     3352     2664
+## treat[3]        -2.68      1.25    -5.12    -0.23 1.00     4675     2853
+## 
+## Family Specific Parameters: 
+##       Estimate Est.Error l-95% CI u-95% CI Rhat Bulk_ESS Tail_ESS
+## disc      1.00      0.00     1.00     1.00 1.00     4000     4000
+## delta     1.96      0.32     1.36     2.58 1.00     1173     1725
+## 
+## Samples were drawn using sampling(NUTS). For each parameter, Bulk_ESS
+## and Tail_ESS are effective sample size measures, and Rhat is the potential
+## scale reduction factor on split chains (at convergence, Rhat = 1).</code></pre>
+<p>Trace and density plots of the model parameters as produced by <code>plot(fit4)</code> can be found in Figure 4. We see that three intercepts (thresholds) and three effects of <code>treat</code> have been estimated, because a four-point scale was used for the ratings. The treatment effect seems to be strongest between category 3 and 4. At the same time, however, the credible interval is also much larger. In fact, the intervals of all three effects of treat are highly overlapping, which indicates that there is not enough evidence in the data to support category specific effects. On the bottom of the output, parameter <code>delta</code> specifies the distance between two adjacent thresholds and indeed the intercepts differ from each other by the magnitude of <code>delta</code>.</p>
 </div>
 </div>
 
